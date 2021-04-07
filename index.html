@@ -43,6 +43,20 @@
 				};
 			}
 
+			// Action creator that returns a function
+			function handleDeleteTodo(todo) {
+				return (dispatch) => {
+					// Optimistically remove todo from UI
+					dispatch(removeTodoAction(todo.id));
+
+					// Add todo back to UI if an error occurs
+					return API.deleteTodo(todo.id).catch(() => {
+						dispatch(addTodoAction(todo));
+						alert('An error occured. Try again');
+					});
+				};
+			}
+
 			function toggleTodoAction(id) {
 				return {
 					type: TOGGLE_TODO,
@@ -115,6 +129,7 @@
 				}
 			}
 
+			// Midle wares
 			const checker = (store) => (next) => (action) => {
 				if (
 					action.type === ADD_TODO &&
@@ -142,13 +157,20 @@
 				return result;
 			};
 
+			const thunk = (store) => (next) => (action) => {
+				if (typeof action === 'function') {
+					return action(store.dispatch);
+				}
+				return next(action);
+			};
+
 			const store = Redux.createStore(
 				Redux.combineReducers({
 					todos,
 					goals,
 					loading,
 				}),
-				Redux.applyMiddleware(checker, logger)
+				Redux.applyMiddleware(thunk, checker, logger)
 			);
 		</script>
 
@@ -191,13 +213,7 @@
 				};
 
 				removeItem = (todo) => {
-					// Optimistically remove todo from UI
-					this.props.store.dispatch(removeTodoAction(todo.id));
-					// Add todo back to UI if an error occurs
-					return API.deleteTodo(todo.id).catch(() => {
-						this.props.store.dispatch(addTodoAction(todo));
-						alert('An error occured. Try again');
-					});
+					this.props.store.dispatch(handleDeleteTodo(todo));
 				};
 
 				toggleItem = (todo) => {
